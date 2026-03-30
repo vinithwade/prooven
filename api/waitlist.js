@@ -1,10 +1,13 @@
 /**
- * POST /api/waitlist
- * - Google Sheets when GOOGLE_SHEET_ID, GOOGLE_SERVICE_ACCOUNT_EMAIL, GOOGLE_PRIVATE_KEY are set.
- * - Else: /tmp Excel only (ephemeral — not your personal sheet).
+ * POST /api/waitlist → appends [timestamp, email] to Google Sheets.
  *
- * Share the Google Sheet with the service account email as Editor.
- * Optional: GOOGLE_SHEET_TAB (default Sheet1) must match the tab name exactly.
+ * Credentials (pick one):
+ * - Vercel: set GOOGLE_SERVICE_ACCOUNT_JSON to the full JSON string (one line is fine), OR
+ *   GOOGLE_SERVICE_ACCOUNT_EMAIL + GOOGLE_PRIVATE_KEY
+ * - Local: same env vars, or place prooven-f4e4cafabfea.json in project root (gitignored)
+ *
+ * Sheet: defaults to Prooven waitlist sheet; override with GOOGLE_SHEET_ID.
+ * Share the sheet with the service account client_email as Editor.
  */
 const fs = require("fs");
 const path = require("path");
@@ -12,6 +15,11 @@ const ExcelJS = require("exceljs");
 const { google } = require("googleapis");
 
 const XLSX_PATH = path.join("/tmp", "waitlist.xlsx");
+
+/** Public ID from your spreadsheet URL (not secret). */
+const DEFAULT_GOOGLE_SHEET_ID = "1oqgsrpxKjlDc490JsQHZgN1Y0XM6QQ-xKpj22EYwSsA";
+
+const LOCAL_CREDENTIALS_FILE = path.join(__dirname, "..", "prooven-f4e4cafabfea.json");
 
 function validEmail(s) {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(s);
@@ -31,11 +39,51 @@ function normalizePrivateKey(k) {
   return s.replace(/\\n/g, "\n");
 }
 
-function googleSheetsConfigured() {
-  const id = trimEnv("GOOGLE_SHEET_ID");
+function credentialsFromParsedJson(j) {
+  if (!j || typeof j !== "object") return null;
+  const email = j.client_email && String(j.client_email).trim();
+  const key = normalizePrivateKey(j.private_key);
+  if (email && key && /BEGIN [A-Z ]*PRIVATE KEY/.test(key)) {
+    return { email, key };
+  }
+  return null;
+}
+
+function loadGoogleCredentials() {
+  const jsonEnv = trimEnv("GOOGLE_SERVICE_ACCOUNT_JSON");
+  if (jsonEnv) {
+    try {
+      const creds = credentialsFromParsedJson(JSON.parse(jsonEnv));
+      if (creds) return creds;
+    } catch {
+      /* fall through */
+    }
+  }
+
   const email = trimEnv("GOOGLE_SERVICE_ACCOUNT_EMAIL");
   const key = normalizePrivateKey(trimEnv("GOOGLE_PRIVATE_KEY"));
-  return Boolean(id && email && key && /BEGIN [A-Z ]*PRIVATE KEY/.test(key));
+  if (email && key && /BEGIN [A-Z ]*PRIVATE KEY/.test(key)) {
+    return { email, key };
+  }
+
+  if (!process.env.VERCEL && fs.existsSync(LOCAL_CREDENTIALS_FILE)) {
+    try {
+      const j = JSON.parse(fs.readFileSync(LOCAL_CREDENTIALS_FILE, "utf8"));
+      return credentialsFromParsedJson(j);
+    } catch (e) {
+      console.error("[waitlist] local credentials file invalid:", e.message);
+    }
+  }
+
+  return null;
+}
+
+function spreadsheetId() {
+  return trimEnv("GOOGLE_SHEET_ID") || DEFAULT_GOOGLE_SHEET_ID;
+}
+
+function googleSheetsConfigured() {
+  return loadGoogleCredentials() != null;
 }
 
 function readJsonBody(req) {
@@ -67,16 +115,18 @@ function a1RangeForTab(tab) {
 }
 
 async function appendToGoogleSheet(email) {
-  const privateKey = normalizePrivateKey(trimEnv("GOOGLE_PRIVATE_KEY"));
+  const creds = loadGoogleCredentials();
+  if (!creds) throw new Error("Missing Google credentials");
+
   const auth = new google.auth.JWT({
-    email: trimEnv("GOOGLE_SERVICE_ACCOUNT_EMAIL"),
-    key: privateKey,
+    email: creds.email,
+    key: creds.key,
     scopes: ["https://www.googleapis.com/auth/spreadsheets"],
   });
   const sheets = google.sheets({ version: "v4", auth });
   const tab = trimEnv("GOOGLE_SHEET_TAB") || "Sheet1";
   await sheets.spreadsheets.values.append({
-    spreadsheetId: trimEnv("GOOGLE_SHEET_ID"),
+    spreadsheetId: spreadsheetId(),
     range: a1RangeForTab(tab),
     valueInputOption: "USER_ENTERED",
     insertDataOption: "INSERT_ROWS",
@@ -105,13 +155,13 @@ function sheetsErrorMessage(err) {
   const apiMsg = err?.response?.data?.error?.message || err?.message || "";
   const s = String(apiMsg);
   if (/Requested entity was not found|not found/i.test(s)) {
-    return "Spreadsheet or tab not found. Check GOOGLE_SHEET_ID and GOOGLE_SHEET_TAB (exact tab name).";
+    return "Spreadsheet or tab not found. Check GOOGLE_SHEET_TAB (exact tab name).";
   }
   if (/permission|denied|insufficient|403|does not have permission/i.test(s)) {
     return "Cannot write to the sheet. Share it with your service account email (Editor) and enable Google Sheets API.";
   }
   if (/invalid_grant|invalid JWT|DECODER/i.test(s)) {
-    return "Invalid Google credentials. Check GOOGLE_PRIVATE_KEY in Vercel (full key, line breaks as \\n or real newlines).";
+    return "Invalid Google credentials. Fix GOOGLE_SERVICE_ACCOUNT_JSON or key in Vercel.";
   }
   return "Could not save your signup. Try again later.";
 }
@@ -134,7 +184,7 @@ module.exports = async (req, res) => {
       await appendToGoogleSheet(email);
     } else {
       console.warn(
-        "[waitlist] Google Sheets env not complete — using /tmp only. Set GOOGLE_SHEET_ID, GOOGLE_SERVICE_ACCOUNT_EMAIL, GOOGLE_PRIVATE_KEY on Vercel."
+        "[waitlist] No Google credentials — using /tmp only. On Vercel set GOOGLE_SERVICE_ACCOUNT_JSON (full JSON) or EMAIL+PRIVATE_KEY; locally add prooven-f4e4cafabfea.json in project root."
       );
       await appendWaitlistRowTmpXlsx(email);
     }
