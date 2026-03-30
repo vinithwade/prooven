@@ -5,7 +5,7 @@ const ExcelJS = require("exceljs");
 
 const app = express();
 const PORT = process.env.PORT || 3000;
-const ROOT = path.join(__dirname, "public");
+const ROOT = __dirname;
 const XLSX_PATH = path.join(__dirname, "waitlist.xlsx");
 
 app.use(express.json({ limit: "16kb" }));
