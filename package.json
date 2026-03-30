@@ -2,7 +2,8 @@
   "name": "prooven-waitlist",
   "private": true,
   "scripts": {
-    "start": "node server.js"
+    "start": "node server.local.js",
+    "dev": "node server.local.js"
   },
   "dependencies": {
     "exceljs": "^4.4.0",
