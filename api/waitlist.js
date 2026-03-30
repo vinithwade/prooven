@@ -156,6 +156,20 @@ function a1RangeForTab(tab) {
   return `${quoted}!A:B`;
 }
 
+/** When GOOGLE_SHEET_TAB is unset, use the spreadsheet's real first tab title (avoids "Sheet1" mismatch). */
+async function resolveTabName(sheetsApi, id) {
+  const explicit = trimEnv("GOOGLE_SHEET_TAB");
+  if (explicit) return explicit;
+
+  const { data } = await sheetsApi.spreadsheets.get({
+    spreadsheetId: id,
+    fields: "sheets.properties.title",
+  });
+  const first = data.sheets && data.sheets[0] && data.sheets[0].properties;
+  const title = first && first.title ? String(first.title).trim() : "";
+  return title || "Sheet1";
+}
+
 async function appendToGoogleSheet(email) {
   const creds = loadGoogleCredentials();
   if (!creds) throw new Error("Missing Google credentials");
@@ -166,9 +180,10 @@ async function appendToGoogleSheet(email) {
     scopes: ["https://www.googleapis.com/auth/spreadsheets"],
   });
   const sheets = google.sheets({ version: "v4", auth });
-  const tab = trimEnv("GOOGLE_SHEET_TAB") || "Sheet1";
+  const id = spreadsheetId();
+  const tab = await resolveTabName(sheets, id);
   await sheets.spreadsheets.values.append({
-    spreadsheetId: spreadsheetId(),
+    spreadsheetId: id,
     range: a1RangeForTab(tab),
     valueInputOption: "USER_ENTERED",
     insertDataOption: "INSERT_ROWS",
