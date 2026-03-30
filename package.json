@@ -6,6 +6,7 @@
     "dev": "node server.local.js"
   },
   "dependencies": {
+    "@supabase/supabase-js": "^2.100.1",
     "exceljs": "^4.4.0"
   },
   "devDependencies": {

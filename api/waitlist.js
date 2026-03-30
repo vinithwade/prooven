@@ -1,10 +1,11 @@
 /**
- * Vercel serverless handler for POST /api/waitlist.
- * Uses /tmp for the xlsx file (serverless FS is ephemeral — use a DB for production scale).
+ * POST /api/waitlist — production on Vercel uses Supabase when env vars are set.
+ * Fallback: /tmp Excel (ephemeral). Local dev uses server.local.js + waitlist.xlsx.
  */
 const fs = require("fs");
 const path = require("path");
 const ExcelJS = require("exceljs");
+const { createClient } = require("@supabase/supabase-js");
 
 const XLSX_PATH = path.join("/tmp", "waitlist.xlsx");
 
@@ -12,7 +13,28 @@ function validEmail(s) {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(s);
 }
 
-async function appendWaitlistRow(email) {
+function supabaseConfigured() {
+  const url = process.env.SUPABASE_URL;
+  const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  return Boolean(url && key && url.startsWith("http"));
+}
+
+async function saveToSupabase(email) {
+  const supabase = createClient(
+    process.env.SUPABASE_URL,
+    process.env.SUPABASE_SERVICE_ROLE_KEY,
+    { auth: { persistSession: false } }
+  );
+  const { error } = await supabase.from("waitlist_signups").insert({ email });
+  if (error) {
+    if (error.code === "23505") {
+      return;
+    }
+    throw error;
+  }
+}
+
+async function appendWaitlistRowTmpXlsx(email) {
   const workbook = new ExcelJS.Workbook();
   if (fs.existsSync(XLSX_PATH)) {
     await workbook.xlsx.readFile(XLSX_PATH);
@@ -39,7 +61,11 @@ module.exports = async (req, res) => {
   }
 
   try {
-    await appendWaitlistRow(email);
+    if (supabaseConfigured()) {
+      await saveToSupabase(email);
+    } else {
+      await appendWaitlistRowTmpXlsx(email);
+    }
     return res.status(200).json({ ok: true });
   } catch (err) {
     console.error(err);
