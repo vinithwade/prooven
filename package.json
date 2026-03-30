@@ -6,7 +6,9 @@
     "dev": "node server.local.js"
   },
   "dependencies": {
-    "exceljs": "^4.4.0",
+    "exceljs": "^4.4.0"
+  },
+  "devDependencies": {
     "express": "^4.21.0"
   }
 }
