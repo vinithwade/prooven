@@ -1,6 +1,5 @@
 node_modules/
 waitlist.xlsx
 
-# Google service account keys — never commit (private keys)
+# Local Google key files (optional; not used by Vercel waitlist anymore)
 prooven-f4e4cafabfea.json
-*-credentials.json
