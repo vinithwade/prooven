@@ -1,13 +1,10 @@
 /**
  * POST /api/waitlist → appends [timestamp, email] to Google Sheets.
  *
- * Credentials (pick one):
- * - Vercel: set GOOGLE_SERVICE_ACCOUNT_JSON to the full JSON string (one line is fine), OR
- *   GOOGLE_SERVICE_ACCOUNT_EMAIL + GOOGLE_PRIVATE_KEY
- * - Local: same env vars, or place prooven-f4e4cafabfea.json in project root (gitignored)
- *
- * Sheet: defaults to Prooven waitlist sheet; override with GOOGLE_SHEET_ID.
- * Share the sheet with the service account client_email as Editor.
+ * Pick one (first match; easiest = Apps Script — see google-apps-script-waitlist.gs):
+ * 1) GOOGLE_APPS_SCRIPT_WEBHOOK_URL + GOOGLE_APPS_SCRIPT_SECRET
+ * 2) Service account: GOOGLE_SERVICE_ACCOUNT_JSON or EMAIL + GOOGLE_PRIVATE_KEY; optional local JSON.
+ *    Default sheet ID in code applies to (2) only.
  */
 const fs = require("fs");
 const path = require("path");
@@ -84,6 +81,51 @@ function spreadsheetId() {
 
 function googleSheetsConfigured() {
   return loadGoogleCredentials() != null;
+}
+
+function appsScriptWebhookConfigured() {
+  const url = trimEnv("GOOGLE_APPS_SCRIPT_WEBHOOK_URL");
+  const secret = trimEnv("GOOGLE_APPS_SCRIPT_SECRET");
+  return Boolean(url && url.startsWith("http") && secret.length >= 8);
+}
+
+async function appendViaAppsScriptWebhook(email) {
+  const base = trimEnv("GOOGLE_APPS_SCRIPT_WEBHOOK_URL");
+  const secret = trimEnv("GOOGLE_APPS_SCRIPT_SECRET");
+  const u = new URL(base);
+  u.searchParams.set("key", secret);
+
+  const ac = new AbortController();
+  const timer = setTimeout(() => ac.abort(), 25000);
+  let res;
+  try {
+    res = await fetch(u.toString(), {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        email,
+        timestamp: new Date().toISOString(),
+      }),
+      signal: ac.signal,
+    });
+  } finally {
+    clearTimeout(timer);
+  }
+
+  const text = await res.text();
+  let data = {};
+  try {
+    data = JSON.parse(text);
+  } catch {
+    /* ignore */
+  }
+
+  if (!res.ok || data.ok === false || data.error) {
+    const msg = data.error || text || "Apps Script request failed";
+    const err = new Error(typeof msg === "string" ? msg : "Apps Script request failed");
+    err.appsScript = true;
+    throw err;
+  }
 }
 
 function readJsonBody(req) {
@@ -163,6 +205,9 @@ function sheetsErrorMessage(err) {
   if (/invalid_grant|invalid JWT|DECODER/i.test(s)) {
     return "Invalid Google credentials. Fix GOOGLE_SERVICE_ACCOUNT_JSON or key in Vercel.";
   }
+  if (err.appsScript) {
+    return String(err.message || "Could not reach Google Apps Script. Check webhook URL and secret.");
+  }
   return "Could not save your signup. Try again later.";
 }
 
@@ -180,11 +225,13 @@ module.exports = async (req, res) => {
   }
 
   try {
-    if (googleSheetsConfigured()) {
+    if (appsScriptWebhookConfigured()) {
+      await appendViaAppsScriptWebhook(email);
+    } else if (googleSheetsConfigured()) {
       await appendToGoogleSheet(email);
     } else {
       console.warn(
-        "[waitlist] No Google credentials — using /tmp only. On Vercel set GOOGLE_SERVICE_ACCOUNT_JSON (full JSON) or EMAIL+PRIVATE_KEY; locally add prooven-f4e4cafabfea.json in project root."
+        "[waitlist] No sheet hook configured — using /tmp only. Easiest: GOOGLE_APPS_SCRIPT_WEBHOOK_URL + GOOGLE_APPS_SCRIPT_SECRET (see google-apps-script-waitlist.gs), or service account JSON."
       );
       await appendWaitlistRowTmpXlsx(email);
     }
