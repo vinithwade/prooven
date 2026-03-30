@@ -2,7 +2,7 @@
  * POST /api/waitlist → appends [timestamp, email] to Google Sheets.
  *
  * Pick one (first match; easiest = Apps Script — see google-apps-script-waitlist.gs):
- * 1) GOOGLE_APPS_SCRIPT_WEBHOOK_URL + GOOGLE_APPS_SCRIPT_SECRET
+ * 1) GOOGLE_APPS_SCRIPT_SECRET (required on Vercel). Web app URL defaults in code; override with GOOGLE_APPS_SCRIPT_WEBHOOK_URL if you redeploy the script.
  * 2) Service account: GOOGLE_SERVICE_ACCOUNT_JSON or EMAIL + GOOGLE_PRIVATE_KEY; optional local JSON.
  *    Default sheet ID in code applies to (2) only.
  */
@@ -15,6 +15,10 @@ const XLSX_PATH = path.join("/tmp", "waitlist.xlsx");
 
 /** Public ID from your spreadsheet URL (not secret). */
 const DEFAULT_GOOGLE_SHEET_ID = "1oqgsrpxKjlDc490JsQHZgN1Y0XM6QQ-xKpj22EYwSsA";
+
+/** Prooven waitlist Apps Script web app (public endpoint; protected by GOOGLE_APPS_SCRIPT_SECRET). */
+const DEFAULT_APPS_SCRIPT_WEBHOOK_URL =
+  "https://script.google.com/macros/s/AKfycbykTehbiSb-skB6C7raz4zgCyQSPMn7zTxardTuEDw7uYSThpC1AcsGA-KtyMJ4pWsb/exec";
 
 const LOCAL_CREDENTIALS_FILE = path.join(__dirname, "..", "prooven-f4e4cafabfea.json");
 
@@ -83,14 +87,19 @@ function googleSheetsConfigured() {
   return loadGoogleCredentials() != null;
 }
 
+function appsScriptWebhookUrl() {
+  const fromEnv = trimEnv("GOOGLE_APPS_SCRIPT_WEBHOOK_URL");
+  if (fromEnv && fromEnv.startsWith("http")) return fromEnv;
+  return DEFAULT_APPS_SCRIPT_WEBHOOK_URL;
+}
+
 function appsScriptWebhookConfigured() {
-  const url = trimEnv("GOOGLE_APPS_SCRIPT_WEBHOOK_URL");
   const secret = trimEnv("GOOGLE_APPS_SCRIPT_SECRET");
-  return Boolean(url && url.startsWith("http") && secret.length >= 8);
+  return Boolean(secret.length >= 8);
 }
 
 async function appendViaAppsScriptWebhook(email) {
-  const base = trimEnv("GOOGLE_APPS_SCRIPT_WEBHOOK_URL");
+  const base = appsScriptWebhookUrl();
   const secret = trimEnv("GOOGLE_APPS_SCRIPT_SECRET");
   const u = new URL(base);
   u.searchParams.set("key", secret);

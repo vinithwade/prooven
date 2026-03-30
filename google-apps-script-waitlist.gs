@@ -9,8 +9,9 @@
  *    - Who has access: Anyone
  * 5) Copy the Web app URL.
  * 6) In Vercel → Environment Variables:
- *      GOOGLE_APPS_SCRIPT_WEBHOOK_URL = that URL
- *      GOOGLE_APPS_SCRIPT_SECRET = same WEBHOOK_SECRET
+ *      GOOGLE_APPS_SCRIPT_SECRET = same WEBHOOK_SECRET (required, 8+ chars)
+ *      Optional: GOOGLE_APPS_SCRIPT_WEBHOOK_URL if you redeploy and the /exec URL changes
+ *      (the repo defaults your current web app URL in api/waitlist.js).
  * 7) Redeploy.
  *
  * New signups append to the active sheet’s first tab (or whichever tab was open when you
