@@ -69,9 +69,9 @@ export default function Footer() {
 
         {/* 4-column info grid */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-10 md:gap-14 mt-12 md:mt-16">
-          {/* Mumbai */}
+          {/* Hyderabad */}
           <Reveal>
-            <h3 className="text-base font-semibold mb-3">Mumbai</h3>
+            <h3 className="text-base font-semibold mb-3">Hyderabad</h3>
             <div className="text-sm text-white/70">
               <LocalTime timeZone="Asia/Kolkata" />
             </div>
