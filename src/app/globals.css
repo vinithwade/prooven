@@ -1,26 +1,273 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --background: #000000;
+  --foreground: #fafafa;
+  --muted: #8a8a8a;
+  --line: rgba(255, 255, 255, 0.14);
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --color-muted: var(--muted);
+  --color-line: var(--line);
+  --font-sans: var(--font-display);
+  --font-display: var(--font-display);
+  --font-serif: var(--font-serif);
+  --font-mono: var(--font-mono);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
-}
-
+html,
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-display), ui-sans-serif, system-ui, -apple-system,
+    sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+::selection {
+  background: #fafafa;
+  color: #000;
+}
+
+.font-serif {
+  font-family: var(--font-serif), Georgia, serif;
+}
+
+.font-mono {
+  font-family: var(--font-mono), ui-monospace, monospace;
+}
+
+.font-script {
+  font-family: var(--font-script), "Caveat", "Patrick Hand", cursive;
+}
+
+/* Reveal on scroll */
+.reveal {
+  opacity: 0;
+  transform: translateY(28px);
+  transition: opacity 0.9s cubic-bezier(0.2, 0.7, 0.2, 1),
+    transform 0.9s cubic-bezier(0.2, 0.7, 0.2, 1);
+}
+.reveal.is-visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+/* Underline link */
+.link-underline {
+  background-image: linear-gradient(currentColor, currentColor);
+  background-size: 0% 1px;
+  background-position: 0 100%;
+  background-repeat: no-repeat;
+  transition: background-size 0.5s cubic-bezier(0.2, 0.7, 0.2, 1);
+}
+.link-underline:hover {
+  background-size: 100% 1px;
+}
+
+/* Static underline (Fortem style label underline) */
+.label-underline {
+  position: relative;
+}
+.label-underline::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: -4px;
+  height: 1px;
+  background: currentColor;
+  opacity: 0.5;
+}
+
+.display-tight {
+  letter-spacing: -0.04em;
+  line-height: 0.86;
+}
+.wordmark {
+  letter-spacing: -0.05em;
+  line-height: 0.78;
+  font-weight: 800;
+}
+
+/* Scroll-expand hero video */
+.hero-video-card {
+  --p: 0;
+  width: calc(34vw + (100vw - 34vw) * var(--p));
+  height: calc(44vh + (100vh - 44vh) * var(--p));
+  border-radius: calc(18px * (1 - var(--p)));
+  transition: none;
+}
+@media (max-width: 768px) {
+  .hero-video-card {
+    width: calc(72vw + (100vw - 72vw) * var(--p));
+    height: calc(36vh + (100vh - 36vh) * var(--p));
+  }
+}
+
+/* Animated placeholder (used when no real video file exists) */
+.hero-placeholder {
+  background:
+    radial-gradient(60% 60% at 28% 25%, rgba(255, 160, 90, 0.85), transparent 65%),
+    radial-gradient(55% 55% at 78% 72%, rgba(70, 110, 255, 0.6), transparent 65%),
+    radial-gradient(45% 45% at 55% 50%, rgba(255, 60, 120, 0.45), transparent 65%),
+    linear-gradient(135deg, #2a2a2a 0%, #141414 55%, #050505 100%);
+  background-size: 220% 220%, 220% 220%, 220% 220%, 100% 100%;
+  animation: heroDrift 18s ease-in-out infinite alternate;
+}
+@keyframes heroDrift {
+  0% {
+    background-position: 0% 0%, 100% 100%, 30% 60%, 0 0;
+  }
+  50% {
+    background-position: 60% 30%, 40% 70%, 70% 30%, 0 0;
+  }
+  100% {
+    background-position: 100% 50%, 0% 50%, 50% 80%, 0 0;
+  }
+}
+
+/* Slight noise/grain for cinematic feel */
+.hero-placeholder::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background-image: radial-gradient(
+    rgba(255, 255, 255, 0.06) 1px,
+    transparent 1px
+  );
+  background-size: 3px 3px;
+  mix-blend-mode: overlay;
+  opacity: 0.5;
+}
+
+/* Moody monochrome image used in the menu overlay */
+.menu-image {
+  background:
+    radial-gradient(80% 60% at 30% 30%, rgba(255, 255, 255, 0.32), transparent 65%),
+    radial-gradient(60% 60% at 75% 70%, rgba(255, 255, 255, 0.12), transparent 65%),
+    linear-gradient(135deg, #0a0a0a 0%, #1f1f1f 35%, #4a4a4a 75%, #7a7a7a 100%);
+  background-size: 220% 220%, 220% 220%, 100% 100%;
+  animation: heroDrift 22s ease-in-out infinite alternate;
+  filter: grayscale(1) contrast(1.05);
+}
+.menu-image::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background-image: radial-gradient(
+    rgba(255, 255, 255, 0.08) 1px,
+    transparent 1px
+  );
+  background-size: 3px 3px;
+  mix-blend-mode: overlay;
+  opacity: 0.6;
+}
+
+/* Menu overlay reveal */
+.menu-overlay {
+  clip-path: inset(0 0 100% 0);
+  transition: clip-path 0.7s cubic-bezier(0.76, 0, 0.24, 1);
+}
+.menu-overlay.open {
+  clip-path: inset(0 0 0% 0);
+}
+
+/* Project card image hover */
+.proj-card .proj-arrow {
+  opacity: 0;
+  transform: scale(0.6);
+  transition: opacity 0.4s ease, transform 0.5s cubic-bezier(0.2, 0.7, 0.2, 1);
+}
+.proj-card:hover .proj-arrow {
+  opacity: 1;
+  transform: scale(1);
+}
+.proj-card .proj-media {
+  filter: brightness(0.78);
+  transition: filter 0.5s ease, transform 0.7s ease;
+}
+.proj-card:hover .proj-media {
+  filter: brightness(1);
+  transform: scale(1.02);
+}
+
+/* Hide scrollbar in filter bar but allow scroll */
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  scrollbar-width: none;
+}
+
+/* Industry bento tiles — fully owned by this CSS so Tailwind utilities don't fight us */
+.industry-tile {
+  isolation: isolate;
+  background: #000;
+  color: #fff;
+  transition: color 0.5s cubic-bezier(0.2, 0.7, 0.2, 1);
+}
+.industry-tile .industry-num {
+  color: rgba(255, 255, 255, 0.45);
+  transition: color 0.5s cubic-bezier(0.2, 0.7, 0.2, 1);
+}
+.industry-tile .industry-arrow {
+  color: rgba(255, 255, 255, 0.45);
+  transition: color 0.5s cubic-bezier(0.2, 0.7, 0.2, 1),
+    transform 0.5s cubic-bezier(0.2, 0.7, 0.2, 1);
+}
+.industry-tile .industry-title {
+  color: #fff;
+  transition: color 0.5s cubic-bezier(0.2, 0.7, 0.2, 1);
+}
+.industry-tile .industry-tag {
+  color: rgba(255, 255, 255, 0.55);
+  transition: color 0.5s cubic-bezier(0.2, 0.7, 0.2, 1);
+}
+
+/* Sweep panel — CSS-driven, no Tailwind utilities */
+.industry-sweep {
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background: #ffffff;
+  transform-origin: bottom;
+  transform: scaleY(0);
+  transition: transform 0.5s cubic-bezier(0.7, 0, 0.2, 1);
+}
+
+/* Hover any tile -> inverted state */
+.industry-tile:hover .industry-sweep {
+  transform: scaleY(1);
+}
+.industry-tile:hover .industry-num,
+.industry-tile:hover .industry-arrow {
+  color: rgba(0, 0, 0, 0.7);
+}
+.industry-tile:hover .industry-arrow {
+  transform: translate(2px, -2px);
+}
+.industry-tile:hover .industry-title {
+  color: #000;
+}
+.industry-tile:hover .industry-tag {
+  color: rgba(0, 0, 0, 0.65);
+}
+
+
+/* Menu link dim-on-sibling-hover effect — color only, no UI change */
+.menu-list a {
+  color: #ffffff;
+  transition: color 0.35s cubic-bezier(0.2, 0.7, 0.2, 1);
+}
+.menu-list:hover a {
+  color: #6b6b6b;
+}
+.menu-list a:hover {
+  color: #ffffff;
 }
